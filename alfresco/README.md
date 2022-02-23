@@ -1,11 +1,11 @@
 # README
 
 ```sh
-$ wget https://raw.githubusercontent.com/lamerce/alfresco/main/Vagrantfile
+$ wget https://raw.githubusercontent.com/lamerce/smx-8/alfresco/main/Vagrantfile
 $ vagrant up
 
 $ vagrant ssh
-(vagrant) $ wget https://raw.githubusercontent.com/lamerce/alfresco/main/docker-compose.yml 
+(vagrant) $ wget https://raw.githubusercontent.com/lamerce/smx-8/alfresco/main/docker-compose.yml 
 (vagrant) $ docker-compose up
 ```
 

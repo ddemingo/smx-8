@@ -2,6 +2,7 @@ Vagrant.configure("2") do |config|
 
     config.vm.box = "peru/ubuntu-20.04-server-amd64"
     config.vm.network :forwarded_port, guest: 8080, host: 8080
+    config.vm.synced_folder ".", "/home/vagrant/host"
        
     config.vm.provider "virtualbox" do |vbox|
       vbox.name = "joomla"
@@ -14,6 +15,8 @@ Vagrant.configure("2") do |config|
       
       # Install mariadb
       sudo apt install -y mariadb-server mariadb-client
+      sudo mysql -uroot -e"CREATE DATABASE joomla;grant all privileges on joomla.* to 'joomla'@'localhost' IDENTIFIED BY 'password';flush privileges;"
+
       
       # Install apache
       sudo apt install -y apache2
