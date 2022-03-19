@@ -1,42 +1,39 @@
 Vagrant.configure("2") do |config|
 
     config.vm.box = "peru/ubuntu-20.04-server-amd64"
-
-    config.vm.define "wp-db" do |db|
-      db.vm.network :private_network, ip: "192.168.0.80", virtualbox__intnet: true
-      db.vm.provider "virtualbox" do |vbox|
-        vbox.name = "wp-db"
-        vbox.memory = "2048"
-        vbox.cpus = 1
-      end
-      db.vm.provision "shell", inline: <<-SHELL
-        sudo apt -y update
-        sudo apt install -y mariadb-server mariadb-client
-        sudo mysql -uroot -e"CREATE DATABASE wordpress;grant all privileges on wordpress.* to 'wordpress'@'%' IDENTIFIED BY 'password';flush privileges;"
-      SHELL
+    config.vm.network :forwarded_port, guest: 80, host: 8080
+       
+    config.vm.provider "virtualbox" do |vbox|
+      vbox.name = "wordpress"
+      vbox.memory = "4096"
+      vbox.cpus = 2
     end
+  
+    config.vm.provision "shell", inline: <<-SHELL
 
-    (1..2).each do |i|
-      config.vm.define "wp-web#{i}" do |web|
-        web.vm.network :forwarded_port, guest: 80, host: "808#{i}"
-        web.vm.network :private_network, ip: "192.168.0.8#{1}", virtualbox__intnet: true
-        web.vm.provider "virtualbox" do |vbox|
-          vbox.name = "wp-web#{i}"
-          vbox.memory = "2048"
-          vbox.cpus = 1
-        end
-        web.vm.provision "shell", inline: <<-SHELL
-          sudo apt-get -y update
-          sudo apt-get -y install apache2 curl ghostscript libapache2-mod-php mariadb-client php php-bcmath php-curl \
+      # Password
+      PASSWORD="password"
+
+      apt-get -y update
+      
+      # Install mariadb
+      apt-get install -y mariadb-server mariadb-client
+      mysql -uroot -e"CREATE DATABASE wordpress;grant all privileges on wordpress.* to 'wordpress'@'localhost' IDENTIFIED BY '$PASSWORD';flush privileges;"
+
+      
+      # Install apache
+      apt-get install -y apache2
+
+      # Wordpress
+      apt-get -y install apache2 curl ghostscript libapache2-mod-php mariadb-client php php-bcmath php-curl \
             php-imagick php-intl php-json php-mbstring php-mysql php-xml php-zip
 
-          # Wordpress
-          if ! test -f "/var/www/html/index.php"; then
-            curl -sS https://wordpress.org/latest.tar.gz | sudo tar zx -C /var/www/html/ --strip-components=1
-            sudo chown -R www-data: /var/www/html
-            rm -f /var/www/html/index.html
-          fi
-        SHELL
-      end
-    end
+      if ! test -f "/var/www/html/index.php"; then
+        curl -sS https://wordpress.org/latest.tar.gz | sudo tar zx -C /var/www/html/ --strip-components=1
+        chown -R www-data: /var/www/html
+        rm -f /var/www/html/index.html
+      fi
+
+    SHELL
+    
 end

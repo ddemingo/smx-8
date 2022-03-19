@@ -1,0 +1,95 @@
+
+$proxy = <<-SCRIPT
+
+apt-get -y update
+apt-get -y install haproxy
+
+echo "
+frontend wp
+  bind 0.0.0.0:80
+  default_backend wp
+
+backend wp
+  server wp-web-1 10.0.2.11
+  server wp-web-2 10.0.2.12
+" >> /etc/haproxy/haproxy.cfg
+
+systemctl restart haproxy
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+
+    PASSWORD="password"
+
+    config.vm.box = "peru/ubuntu-20.04-server-amd64"
+
+    config.vm.define "wp-proxy" do |proxy|
+      
+      proxy.vm.hostname = "wp-proxy"
+      proxy.vm.network :private_network, ip: "10.0.0.10", virtualbox__intnet: true
+      proxy.vm.network :forwarded_port, guest: 80, host: 8080
+      
+      proxy.vm.provision "shell", inline: $proxy
+
+      proxy.vm.provider "virtualbox" do |vbox|
+        vbox.name = "wb-proxy"
+        vbox.linked_clone = true
+        vbox.memory = "1024"
+        vbox.cpus = 1
+      end
+      
+    
+    end
+
+    config.vm.define "wp-db" do |db|
+      
+      db.vm.hostname = "wp-db"
+      db.vm.network :private_network, ip: "10.0.1.10", virtualbox__intnet: true
+      
+      db.vm.provider "virtualbox" do |vbox|
+        vbox.name = "wp-db"
+        vbox.linked_clone = true
+        vbox.memory = "2048"
+        vbox.cpus = 1
+      end
+      
+      db.vm.provision "shell", inline: <<-SHELL
+        sudo apt -y update
+        sudo apt install -y mariadb-server mariadb-client
+        sudo mysql -uroot -e"CREATE DATABASE wordpress;grant all privileges on wordpress.* to 'wordpress'@'10.0.2.%' IDENTIFIED BY '$PASSWORD';flush privileges;"
+      SHELL
+    
+    end
+
+    (1..2).each do |i|
+      config.vm.define "wp-web-#{i}" do |web|
+
+        web.vm.hostname = "wp-web-#{i}"
+        web.vm.network :private_network, ip: "10.0.2.1#{i}", virtualbox__intnet: true
+        
+        web.vm.network :forwarded_port, guest: 80, host: "808#{i}"
+
+        web.vm.provider "virtualbox" do |vbox|
+          vbox.name = "wp-web-#{i}"
+          vbox.linked_clone = true
+          vbox.memory = "2048"
+          vbox.cpus = 1
+        end
+        
+        web.vm.provision "shell", inline: <<-SHELL
+          sudo apt-get -y update
+          sudo apt-get -y install apache2 curl ghostscript libapache2-mod-php mariadb-client php php-bcmath php-curl \
+            php-imagick php-intl php-json php-mbstring php-mysql php-xml php-zip
+
+          # Wordpress
+          if ! test -f "/var/www/html/index.php"; then
+            curl -sS https://wordpress.org/latest.tar.gz | sudo tar zx -C /var/www/html/ --strip-components=1
+            sudo chown -R www-data: /var/www/html
+            rm -f /var/www/html/index.html
+          fi
+        SHELL
+      end
+    end
+
+end
