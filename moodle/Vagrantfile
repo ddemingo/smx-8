@@ -30,11 +30,8 @@ Vagrant.configure("2") do |config|
         mkdir /var/www/moodledata
         chown www-data: /var/www/moodledata/
         rm -f /var/www/html/index.html
+        systemctl restart apache2 # php gd not installed
       fi
-
-      
-      chown -R www-data: /var/www/html
-      rm /var/www/html/index.html
 
     SHELL
     
